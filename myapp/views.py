@@ -26,7 +26,7 @@ def login_view(request):
     try:
         user = User.objects.get(email=email)
         if user.password == password:
-            return JsonResponse({"user_id": user.id, "milan_id": user.milan}, status=200)
+            return JsonResponse({"user_id": user.id, "milan_id": user.milan.id}, status=200)
         else:
             return JsonResponse({"error": "Invalid credentials"}, status=401)
     except User.DoesNotExist:
