@@ -1,6 +1,7 @@
 from django.db import models
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 class Milan(models.Model):
     milan_name = models.CharField(max_length=100)
@@ -43,7 +44,7 @@ class Reports(models.Model):
     user = models.ForeignKey('User', related_name='user_reports', on_delete=models.CASCADE, null=True, blank=True)
     common_user = models.ForeignKey('CommonUser', on_delete=models.CASCADE, null=True, blank=True)
     role = models.ForeignKey('Responsibility', on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
