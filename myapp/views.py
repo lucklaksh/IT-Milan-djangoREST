@@ -131,31 +131,52 @@ def report_view(request):
     milan_id = data.get('milan_id')
     users = data.get('users')
     commoners = data.get('commoners')
-    today = timezone.now().date()
+    date = data.get('date')
+    try:
+        day = timezone.datetime.strptime(date, '%Y-%m-%d').date() 
+    except ValueError:
+        return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
     Reports.objects.filter(
             milan_id=milan_id,
-            created_at__date=today
+            created_at__date=day
         ).delete()
+     # Prepare lists for bulk creation
+    report_entries = []
+
+    # Process 'users' data
     for user_data in users:
-        user = User.objects.get(id=user_data['user_id'])  # Fetch the user object
-        report = Reports(
+        user_id = user_data.get('user_id')
+        try:
+            user = User.objects.get(id=user_id)  # Fetch the user object
+        except User.DoesNotExist:
+            return Response({"error": f"User with id {user_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        report_entries.append(Reports(
             milan_id=milan_id,
             user=user,
             role=user.role,  # Automatically assign role from User model
-            created_at=timezone.now(),
+            created_at=day,
             updated_at=timezone.now()
-        )
-        report.save()
+        ))
+    
+    # Process 'commoners' data
     for commoner_data in commoners:
-        commoner = CommonUser.objects.get(id=commoner_data['commoner_id'])  # Fetch the commoner object
-        report = Reports(
+        commoner_id = commoner_data.get('commoner_id')
+        try:
+            commoner = CommonUser.objects.get(id=commoner_id)  # Fetch the commoner object
+        except CommonUser.DoesNotExist:
+            return Response({"error": f"CommonUser with id {commoner_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        report_entries.append(Reports(
             milan_id=milan_id,
             common_user=commoner,
-            role=commoner.role,  # Automatically assign role from User model
-            created_at=timezone.now(),
+            role=commoner.role,  # Automatically assign role from CommonUser model
+            created_at=day,
             updated_at=timezone.now()
-        )
-        report.save()
+        ))
+
+    # Bulk create reports to optimize database operations
+    Reports.objects.bulk_create(report_entries)
     return Response({"message": "Reports updated successfully."}, status=status.HTTP_200_OK)
 
 
