@@ -115,17 +115,17 @@ def roles_count_view(request):
     for report in reports:
         date = report.created_at.date().strftime('%Y-%m-%d')
         role_name = report.role.role_name
-        
+
         # Check which name to use: either user or commonuser
+        name = None
         if hasattr(report, 'user') and report.user is not None:
             name = report.user.name  # Assuming user model has a 'name' field
-        elif hasattr(report, 'commonuser') and report.commonuser is not None:
-            name = report.commonuser.name  # Assuming commonuser model has a 'name' field
-        else:
-            name = None
-        
+        elif hasattr(report, 'common_user') and report.common_user is not None:
+            name = report.common_user.name  # Assuming commonuser model has a 'name' field
+
         if not name:
-            continue  # Skip if there is no valid name
+            # Skip this entry if no valid name is found
+            continue
 
         if date not in names_by_role:
             names_by_role[date] = {}
@@ -135,7 +135,7 @@ def roles_count_view(request):
 
         # Collect the names and increment the count
         names_by_role[date][role_name]["names"].append(name)
-    
+
     # Combine count data and names for the response
     response_data = {}
     for entry in role_counts:
@@ -146,14 +146,15 @@ def roles_count_view(request):
         if date not in response_data:
             response_data[date] = {}
 
+        # Safely access names_by_role to avoid KeyError
+        role_data = names_by_role.get(date, {}).get(role_name, {"names": []})
+
         response_data[date][role_name] = {
             "count": count,
-            "names": names_by_role[date][role_name]["names"]
+            "names": role_data["names"]  # This will be an empty list if the key is missing
         }
 
     return Response(response_data, status=status.HTTP_200_OK)
-
-
 
 
 @api_view(['POST'])
