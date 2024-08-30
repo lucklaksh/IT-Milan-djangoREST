@@ -105,20 +105,51 @@ def roles_count_view(request):
         created_at__date__range=(from_date, to_date)
     )
 
-    # Aggregate the count of roles grouped by date and role
-    role_counts = reports.values('created_at__date', 'role__role_name')\
-                         .annotate(count=Count('id'))\
+    # Aggregate the count of roles grouped by date and role, and get related names
+    role_counts = reports.values('created_at__date', 'role__role_name') \
+                         .annotate(count=Count('id')) \
                          .order_by('created_at__date', 'role__role_name')
 
-    # Format the response
+    # Group the names by date and role
+    names_by_role = {}
+    for report in reports:
+        date = report.created_at.date().strftime('%Y-%m-%d')
+        role_name = report.role.role_name
+        
+        # Check which name to use: either user or commonuser
+        if hasattr(report, 'user') and report.user is not None:
+            name = report.user.name  # Assuming user model has a 'name' field
+        elif hasattr(report, 'commonuser') and report.commonuser is not None:
+            name = report.commonuser.name  # Assuming commonuser model has a 'name' field
+        else:
+            name = None
+        
+        if not name:
+            continue  # Skip if there is no valid name
+
+        if date not in names_by_role:
+            names_by_role[date] = {}
+
+        if role_name not in names_by_role[date]:
+            names_by_role[date][role_name] = {"count": 0, "names": []}
+
+        # Collect the names and increment the count
+        names_by_role[date][role_name]["names"].append(name)
+    
+    # Combine count data and names for the response
     response_data = {}
     for entry in role_counts:
         date = entry['created_at__date'].strftime('%Y-%m-%d')  # Convert to string format
         role_name = entry['role__role_name']
         count = entry['count']
+
         if date not in response_data:
             response_data[date] = {}
-        response_data[date][role_name] = count
+
+        response_data[date][role_name] = {
+            "count": count,
+            "names": names_by_role[date][role_name]["names"]
+        }
 
     return Response(response_data, status=status.HTTP_200_OK)
 
